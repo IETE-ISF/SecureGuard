@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI
 
-from backend.api import health
+from backend.api import devices, health
 from backend.config import get_settings
 from backend.database.session import check_connection, dispose_engine, init_engine
 from backend.database.init_db import create_tables
@@ -70,6 +70,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     app.include_router(health.router)
+    app.include_router(devices.router) 
     return app
 
 
