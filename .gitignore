@@ -36,3 +36,8 @@ Thumbs.db
 .vscode/
 .idea/
 '@ | Set-Content -Path .gitignore -Encoding utf8
+# Runtime database directory
+data/
+
+# Runtime database directory
+data/
