@@ -1,5 +1,6 @@
 """
-config.py - Central application configuration (Phase 0 Task 2, extended in Phase 1 Task 1).
+config.py - Central application configuration
+(Phase 0 Task 2, extended in Phase 1 Task 1 and Phase 3 Task 1).
 
 All settings are loaded from environment variables prefixed with SRG_,
 or from a .env file in the project root. Values are validated at startup,
@@ -10,14 +11,14 @@ Usage:
     from backend.config import get_settings
 
     settings = get_settings()
-    print(settings.database_url)
+    print(settings.uart_baudrate)
 """
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Absolute paths, independent of the directory the app is launched from.
@@ -58,6 +59,12 @@ class Settings(BaseSettings):
     database_path: Path = DATA_DIR / "securerack.db"
     database_echo: bool = False
 
+    # --- UART (link to the master ESP32-C3) ---
+    uart_enabled: bool = False
+    uart_port: str = ""  # e.g. COM5 on Windows, /dev/serial0 on the Raspberry Pi
+    uart_baudrate: int = Field(default=115200, ge=1200, le=3_000_000)
+    uart_read_timeout: float = Field(default=1.0, gt=0, le=60)
+
     @field_validator("log_level", mode="before")
     @classmethod
     def _normalise_log_level(cls, value: object) -> object:
@@ -73,6 +80,19 @@ class Settings(BaseSettings):
         if not value.is_absolute():
             value = PROJECT_ROOT / value
         return value.resolve()
+
+    @field_validator("uart_port", mode="after")
+    @classmethod
+    def _strip_uart_port(cls, value: str) -> str:
+        """Ignore stray whitespace around the port name."""
+        return value.strip()
+
+    @model_validator(mode="after")
+    def _require_uart_port_when_enabled(self) -> Self:
+        """UART cannot be enabled without saying which port to open."""
+        if self.uart_enabled and not self.uart_port:
+            raise ValueError("SRG_UART_PORT must be set when SRG_UART_ENABLED is true")
+        return self
 
     @property
     def database_url(self) -> str:
