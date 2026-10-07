@@ -64,7 +64,10 @@ class Settings(BaseSettings):
     uart_port: str = ""  # e.g. COM5 on Windows, /dev/serial0 on the Raspberry Pi
     uart_baudrate: int = Field(default=115200, ge=1200, le=3_000_000)
     uart_read_timeout: float = Field(default=1.0, gt=0, le=60)
-
+    
+    # --- Device presence ---
+    device_offline_timeout_seconds: int = Field(default=30, ge=5, le=3600)
+    device_sweep_interval_seconds: float = Field(default=10.0, gt=0, le=600)
     @field_validator("log_level", mode="before")
     @classmethod
     def _normalise_log_level(cls, value: object) -> object:

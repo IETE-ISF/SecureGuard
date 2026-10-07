@@ -1,5 +1,6 @@
 """
-main.py - FastAPI application entry point (Phase 0 Task 4, extended in Phase 1 Task 4).
+main.py - FastAPI application entry point
+(Phase 0 Task 4, extended in Phases 1 to 3).
 
 Run with either:
     python -m backend.main
@@ -16,9 +17,12 @@ from fastapi import FastAPI
 
 from backend.api import devices, health
 from backend.config import get_settings
-from backend.database.session import check_connection, dispose_engine, init_engine
 from backend.database.init_db import create_tables
+from backend.database.session import check_connection, dispose_engine, init_engine
 from backend.logging_config import setup_logging
+from backend.services.message_handler import MessageHandler
+from backend.services.presence_sweeper import PresenceSweeper
+from backend.services.uart_service import UartService
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +32,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """
     Run startup and shutdown logic for the application.
 
-    Startup: configure logging, open the database and verify it responds.
-    If the database check fails, startup is aborted.
-    Shutdown: close all pooled database connections.
+    Startup: configure logging, open the database and verify it responds
+    (abort if not), create tables, start the presence sweeper, and start the
+    UART reader if SRG_UART_ENABLED is true.
+    Shutdown: stop the UART reader, then the sweeper, then close the database.
     """
     settings = get_settings()
     setup_logging(settings)
@@ -49,12 +54,32 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         raise RuntimeError(
             f"Database connectivity check failed ({settings.database_path})"
         )
-    create_tables()
     logger.info("Database connection OK (%s)", settings.database_path)
 
+    sweeper = PresenceSweeper.from_settings(settings)
+    uart: UartService | None = None
+    app.state.sweeper = sweeper
+    app.state.uart = None
+    app.state.message_handler = None
+
     try:
+        create_tables()
+        sweeper.start()
+
+        if settings.uart_enabled:
+            handler = MessageHandler()
+            uart = UartService.from_settings(handler.handle_line, settings)
+            uart.start()
+            app.state.message_handler = handler
+            app.state.uart = uart
+        else:
+            logger.info("UART disabled (set SRG_UART_ENABLED=true and SRG_UART_PORT to enable)")
+
         yield
     finally:
+        if uart is not None:
+            uart.stop()
+        sweeper.stop()
         dispose_engine()
         logger.info("%s shutting down", settings.app_name)
 
@@ -70,7 +95,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     app.include_router(health.router)
-    app.include_router(devices.router) 
+    app.include_router(devices.router)
     return app
 
 
