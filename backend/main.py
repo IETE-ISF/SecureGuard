@@ -1,5 +1,5 @@
 """
-main.py - FastAPI application entry point (Phase 0, Task 4).
+main.py - FastAPI application entry point (Phase 0 Task 4, extended in Phase 1 Task 4).
 
 Run with either:
     python -m backend.main
@@ -16,6 +16,7 @@ from fastapi import FastAPI
 
 from backend.api import health
 from backend.config import get_settings
+from backend.database.session import check_connection, dispose_engine, init_engine
 from backend.logging_config import setup_logging
 
 logger = logging.getLogger(__name__)
@@ -23,7 +24,13 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Run startup and shutdown logic for the application."""
+    """
+    Run startup and shutdown logic for the application.
+
+    Startup: configure logging, open the database and verify it responds.
+    If the database check fails, startup is aborted.
+    Shutdown: close all pooled database connections.
+    """
     settings = get_settings()
     setup_logging(settings)
 
@@ -34,8 +41,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         settings.app_version,
         settings.environment,
     )
-    yield
-    logger.info("%s shutting down", settings.app_name)
+
+    init_engine(settings)
+    if not check_connection():
+        dispose_engine()
+        raise RuntimeError(
+            f"Database connectivity check failed ({settings.database_path})"
+        )
+    logger.info("Database connection OK (%s)", settings.database_path)
+
+    try:
+        yield
+    finally:
+        dispose_engine()
+        logger.info("%s shutting down", settings.app_name)
 
 
 def create_app() -> FastAPI:
