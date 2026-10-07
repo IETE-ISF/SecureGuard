@@ -47,3 +47,5 @@ urllib3==2.8.0
 Werkzeug==3.1.9
 
 SQLAlchemy==2.0.54
+
+pytest==9.1.1
