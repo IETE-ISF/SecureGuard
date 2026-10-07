@@ -210,3 +210,4 @@ def test_app_startup_aborts_when_database_unreachable(
     with pytest.raises(RuntimeError, match="Database connectivity check failed"):
         with TestClient(app):
             pass
+        
