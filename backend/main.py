@@ -17,6 +17,7 @@ from fastapi import FastAPI
 from backend.api import health
 from backend.config import get_settings
 from backend.database.session import check_connection, dispose_engine, init_engine
+from backend.database.init_db import create_tables
 from backend.logging_config import setup_logging
 
 logger = logging.getLogger(__name__)
@@ -48,6 +49,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         raise RuntimeError(
             f"Database connectivity check failed ({settings.database_path})"
         )
+    create_tables()
     logger.info("Database connection OK (%s)", settings.database_path)
 
     try:
