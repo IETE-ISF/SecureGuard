@@ -107,3 +107,21 @@ def remove_device(node_id: str, db: DbSession) -> None:
         device_service.delete_device(db, node_id)
     except DeviceNotFoundError as exc:
         raise _not_found(exc) from exc
+
+@router.post(
+    "/{node_id}/heartbeat",
+    response_model=DeviceRead,
+    summary="Record a device heartbeat",
+)
+def device_heartbeat(node_id: str, db: DbSession) -> Device:
+    """
+    Record that a device was just seen: updates last_seen and brings an
+    offline device back online. Devices in maintenance stay in maintenance.
+
+    The UART service (Phase 3) calls the service function directly; this
+    endpoint is for manual testing and will be protected in Phase 8.
+    """
+    try:
+        return device_service.record_heartbeat(db, node_id)
+    except DeviceNotFoundError as exc:
+        raise _not_found(exc) from exc

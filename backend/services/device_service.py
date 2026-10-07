@@ -7,14 +7,15 @@ Functions commit their own changes and roll back on failure.
 """
 
 import logging
+from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from backend.database.base import utcnow
 from backend.models.device import Device, DeviceStatus, DeviceType
 from backend.schemas.device import DeviceCreate, DeviceUpdate
-
 logger = logging.getLogger(__name__)
 
 
@@ -117,3 +118,62 @@ def delete_device(db: Session, node_id: str) -> None:
     db.delete(device)
     db.commit()
     logger.info("Device deleted: %s", device.node_id)
+
+DEFAULT_OFFLINE_TIMEOUT_SECONDS = 30
+
+
+def record_heartbeat(
+    db: Session, node_id: str, seen_at: datetime | None = None
+) -> Device:
+    """
+    Record that a device was just seen.
+
+    Updates last_seen (default: now, UTC) and brings an OFFLINE device back
+    ONLINE. A device in MAINTENANCE stays in MAINTENANCE, since that state is
+    set by an operator. Raises DeviceNotFoundError for an unknown node_id.
+    """
+    device = get_device(db, node_id)
+    device.last_seen = seen_at or utcnow()
+    if device.status == DeviceStatus.OFFLINE:
+        device.status = DeviceStatus.ONLINE
+        logger.info("Device online: %s", device.node_id)
+
+    db.commit()
+    db.refresh(device)
+    return device
+
+
+def mark_stale_devices_offline(
+    db: Session,
+    timeout_seconds: int = DEFAULT_OFFLINE_TIMEOUT_SECONDS,
+    now: datetime | None = None,
+) -> list[str]:
+    """
+    Set ONLINE devices to OFFLINE when they have been silent too long.
+
+    A device is stale if last_seen is older than `timeout_seconds` or was
+    never recorded. OFFLINE and MAINTENANCE devices are left alone.
+    Returns the node_ids that were marked offline.
+    """
+    now = now or utcnow()
+    cutoff = now - timedelta(seconds=timeout_seconds)
+
+    statement = (
+        select(Device)
+        .where(
+            Device.status == DeviceStatus.ONLINE,
+            or_(Device.last_seen.is_(None), Device.last_seen < cutoff),
+        )
+        .order_by(Device.id)
+    )
+    stale = list(db.scalars(statement).all())
+    if not stale:
+        return []
+
+    for device in stale:
+        device.status = DeviceStatus.OFFLINE
+    db.commit()
+
+    node_ids = [device.node_id for device in stale]
+    logger.warning("Devices marked offline (no heartbeat): %s", ", ".join(node_ids))
+    return node_ids
