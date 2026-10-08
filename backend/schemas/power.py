@@ -1,8 +1,9 @@
 """
-power.py - Pydantic schemas for power monitoring (Phase 5, Task 1).
+power.py - Pydantic schemas for power monitoring (Phase 5, Tasks 1 and 2).
 
 PowerPayload      - validates the "d" object of a power-node data packet
 PowerReadingRead  - API response for one stored reading
+PowerSummary      - aggregates over a window of stored readings
 
 Units: V, A, W, kWh (cumulative meter reading) and power factor 0 to 1.
 Limits follow the PZEM-004T meter.
@@ -12,6 +13,8 @@ from datetime import datetime
 from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from backend.schemas.water import MetricStats
 
 VOLTAGE_MAX_V = 300.0
 CURRENT_MAX_A = 100.0
@@ -64,3 +67,25 @@ class PowerReadingRead(BaseModel):
     power: float
     energy: float
     power_factor: float | None
+
+
+class PowerSummary(BaseModel):
+    """
+    Aggregates over a window of stored power readings.
+
+    energy is a cumulative meter reading, so its min and max show the
+    meter's range over the window; energy used is computed in the analytics
+    phase, where meter resets are handled.
+    """
+
+    node_id: str | None
+    start: datetime
+    end: datetime
+    count: int
+    first_recorded_at: datetime | None
+    last_recorded_at: datetime | None
+    voltage: MetricStats
+    current: MetricStats
+    power: MetricStats
+    energy: MetricStats
+    power_factor: MetricStats
