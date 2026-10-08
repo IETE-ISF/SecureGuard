@@ -5,6 +5,7 @@ Add each new model module here as later phases create them.
 """
 
 from backend.models.device import Device, DeviceStatus, DeviceType
+from backend.models.power import PowerReading
 from backend.models.water import WaterReading
 
-__all__ = ["Device", "DeviceStatus", "DeviceType", "WaterReading"]
+__all__ = ["Device", "DeviceStatus", "DeviceType", "PowerReading", "WaterReading"]
