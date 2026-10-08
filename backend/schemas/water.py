@@ -81,3 +81,29 @@ class WaterReadingRead(BaseModel):
     def delta_temp(self) -> float:
         """Temperature rise across the cooling loop in degrees C (outlet minus inlet)."""
         return round(self.temp_out - self.temp_in, 3)
+
+class MetricStats(BaseModel):
+    """Average, minimum and maximum of one metric over a time window."""
+
+    avg: float | None
+    min: float | None
+    max: float | None
+
+
+class WaterSummary(BaseModel):
+    """Aggregates over a window of stored water readings."""
+
+    node_id: str | None
+    start: datetime
+    end: datetime
+    count: int
+    first_recorded_at: datetime | None
+    last_recorded_at: datetime | None
+    flow_in: MetricStats
+    flow_out: MetricStats
+    consumption: MetricStats
+    temp_in: MetricStats
+    temp_out: MetricStats
+    delta_temp: MetricStats
+    humidity: MetricStats
+    pressure: MetricStats

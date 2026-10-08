@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI
 
-from backend.api import devices, health
+from backend.api import devices, health, water
 from backend.config import get_settings
 from backend.database.init_db import create_tables
 from backend.database.session import check_connection, dispose_engine, init_engine
@@ -102,6 +102,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(health.router)
     app.include_router(devices.router)
+    app.include_router(water.router)
     return app
 
 
