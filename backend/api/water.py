@@ -38,7 +38,7 @@ DEFAULT_SUMMARY_WINDOW = timedelta(hours=24)
 
 
 def _unprocessable(detail: str) -> HTTPException:
-    return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=detail)
+    return HTTPException(status_code=422, detail=detail)
 
 
 def _validate_times(start: datetime | None, end: datetime | None) -> None:
