@@ -62,3 +62,50 @@ set `SRG_UART_PORT=/dev/serial0`.
 python -m backend.services.serial_ports                 # find the port
 python -m backend.services.uart_monitor --port COM7     # lines marked OK or BAD
 ```
+
+@'
+
+## Water node payload
+
+A `data` packet from a device registered as type `water` must carry these keys in `d`:
+
+| Key | Unit | Allowed range | Required |
+|---|---|---|---|
+| `flow_in` | L/min | 0 to 1000 | yes |
+| `flow_out` | L/min | 0 to 1000 | yes |
+| `temp_in` | degrees C | -55 to 125 | yes |
+| `temp_out` | degrees C | -55 to 125 | yes |
+| `humidity` | percent | 0 to 100 | no |
+| `pressure` | hPa (ambient, BME280) | 300 to 1100 | no |
+
+Values must be JSON numbers, not text and not `true`/`false`. A payload with a
+missing required key, an out-of-range value or any unknown key is not stored
+and is counted as `invalid_payload`. The node still counts as online, because
+the packet itself was valid.
+
+```json
+{"v":1,"src":"WATER_01","type":"data","seq":42,"d":{"flow_in":15.4,"flow_out":11.2,"temp_in":24.3,"temp_out":28.9,"humidity":58,"pressure":1013.2}}
+```
+'@ | Add-Content -Path docs\uart-protocol.md -Encoding utf8
+Select-String -Path docs\uart-protocol.md -Pattern "Water node payload"
+## Water node payload
+
+A `data` packet from a device registered as type `water` must carry these keys in `d`:
+
+| Key | Unit | Allowed range | Required |
+|---|---|---|---|
+| `flow_in` | L/min | 0 to 1000 | yes |
+| `flow_out` | L/min | 0 to 1000 | yes |
+| `temp_in` | degrees C | -55 to 125 | yes |
+| `temp_out` | degrees C | -55 to 125 | yes |
+| `humidity` | percent | 0 to 100 | no |
+| `pressure` | hPa (ambient, BME280) | 300 to 1100 | no |
+
+Values must be JSON numbers, not text and not `true`/`false`. A payload with a
+missing required key, an out-of-range value or any unknown key is not stored
+and is counted as `invalid_payload`. The node still counts as online, because
+the packet itself was valid.
+
+```json
+{"v":1,"src":"WATER_01","type":"data","seq":42,"d":{"flow_in":15.4,"flow_out":11.2,"temp_in":24.3,"temp_out":28.9,"humidity":58,"pressure":1013.2}}
+```
