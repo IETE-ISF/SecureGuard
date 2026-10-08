@@ -1,6 +1,6 @@
 """
 main.py - FastAPI application entry point
-(Phase 0 Task 4, extended in Phases 1 to 3).
+(Phase 0 Task 4, extended in Phases 1 to 4).
 
 Run with either:
     python -m backend.main
@@ -23,6 +23,7 @@ from backend.logging_config import setup_logging
 from backend.services.message_handler import MessageHandler
 from backend.services.presence_sweeper import PresenceSweeper
 from backend.services.uart_service import UartService
+from backend.services.water_service import WaterIngestor
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +34,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     Run startup and shutdown logic for the application.
 
     Startup: configure logging, open the database and verify it responds
-    (abort if not), create tables, start the presence sweeper, and start the
-    UART reader if SRG_UART_ENABLED is true.
+    (abort if not), create tables, start the presence sweeper, and, if
+    SRG_UART_ENABLED is true, start the UART reader with the water
+    ingestor subscribed to incoming packets.
     Shutdown: stop the UART reader, then the sweeper, then close the database.
     """
     settings = get_settings()
@@ -61,6 +63,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.sweeper = sweeper
     app.state.uart = None
     app.state.message_handler = None
+    app.state.water_ingestor = None
 
     try:
         create_tables()
@@ -68,9 +71,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         if settings.uart_enabled:
             handler = MessageHandler()
+            water = WaterIngestor()
+            handler.add_listener(water.handle_packet)
             uart = UartService.from_settings(handler.handle_line, settings)
             uart.start()
             app.state.message_handler = handler
+            app.state.water_ingestor = water
             app.state.uart = uart
         else:
             logger.info("UART disabled (set SRG_UART_ENABLED=true and SRG_UART_PORT to enable)")

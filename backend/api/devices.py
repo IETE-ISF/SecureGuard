@@ -107,7 +107,6 @@ def remove_device(node_id: str, db: DbSession) -> None:
         device_service.delete_device(db, node_id)
     except DeviceNotFoundError as exc:
         raise _not_found(exc) from exc
-
 @router.post(
     "/{node_id}/heartbeat",
     response_model=DeviceRead,
